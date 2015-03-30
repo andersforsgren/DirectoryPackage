@@ -1,6 +1,8 @@
 ﻿using System;
 using System.IO;
 using System.IO.Packaging;
+using System.Linq;
+using System.Linq.Expressions;
 using System.Text;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -12,7 +14,6 @@ namespace DirectoryPackage.Tests
       private string dirName;
       private string root;
       private string path;
-
 
       [TestInitialize]
       public void Setup()
@@ -61,7 +62,7 @@ namespace DirectoryPackage.Tests
          using (Package package = new DirectoryPackage(path, FileAccess.ReadWrite))
          {
             var part = package.CreatePart(partUri, "text/plain");
-            Assert.IsNotNull(part, "Failed to create part "+partUri);
+            Assert.IsNotNull(part, "Failed to create part " + partUri);
             using (var stream = part.GetStream(FileMode.OpenOrCreate))
             using (var sw = new StreamWriter(stream, Encoding.UTF8))
             {
@@ -76,7 +77,7 @@ namespace DirectoryPackage.Tests
          {
             Assert.IsTrue(package.PartExists(partUri), "Expected part to persist.");
             var part = package.GetPart(partUri);
-            Assert.IsTrue(File.Exists(GetPath(part.Uri)), "Expected part file to exist at "+partUri+"->"+GetPath(partUri));
+            Assert.IsTrue(File.Exists(GetPath(part.Uri)), "Expected part file to exist at " + partUri + "->" + GetPath(partUri));
             Assert.AreEqual("SomeTest", File.ReadAllText(GetPath(part.Uri)), "Part file contents differs!");
             Assert.AreEqual("text/plain", part.ContentType, "Part had unexpected content type after reopen");
          }
@@ -117,7 +118,7 @@ namespace DirectoryPackage.Tests
          using (Package package = new DirectoryPackage(path, FileAccess.ReadWrite))
          {
             string partFile = "/test.ext";
-            Uri partUri = new Uri(partFile, UriKind.Relative);    
+            Uri partUri = new Uri(partFile, UriKind.Relative);
             var part = package.CreatePart(partUri, "text/plain");
             Assert.IsNotNull(part, "Failed to create part " + partUri);
             using (var stream = part.GetStream(FileMode.OpenOrCreate))
@@ -172,12 +173,25 @@ namespace DirectoryPackage.Tests
       }
 
       [TestMethod]
+      public void TestPackageProperties()
+      {
+         using (var pkg = new DirectoryPackage(path, FileAccess.ReadWrite))
+         {
+            pkg.PackageProperties.Creator = "CreatorName";
+         }
+         using (var pk2 = new DirectoryPackage(path, FileAccess.Read))
+         {
+            Assert.AreEqual("CreatorName", pk2.PackageProperties.Creator);
+         }
+      }
+
+      [TestMethod]
       public void TestOpenReadCanShare()
       {
          using (Package p1 = new DirectoryPackage(path, FileAccess.Write))
          {
          }
-         using (Package p1= new DirectoryPackage(path, FileAccess.Read))
+         using (Package p1 = new DirectoryPackage(path, FileAccess.Read))
          {
             using (Package p2 = new DirectoryPackage(path, FileAccess.Read))
             {
@@ -211,6 +225,98 @@ namespace DirectoryPackage.Tests
             {
             }
          }
+      }
+
+      /// <summary>
+      ///   Tests loading existing OPC files to compare that a DirectoryPackage can be loaded
+      ///   and is equal to the original file package.
+      /// 
+      ///   Test files are from http://blogs.msdn.com/b/dmahugh/archive/2007/09/11/open-xml-implementation-test-documents.aspx
+      /// </summary>
+      [TestMethod]
+      public void TestDocuments()
+      {
+         foreach (var file in Directory.GetFiles("testdocuments"))
+         {
+            // Extract the contents to a directory
+            System.IO.Compression.ZipFile.ExtractToDirectory(file, Path.Combine(path, file));
+
+            using (Package zipPackage = Package.Open(file, FileMode.Open))
+            {
+               // Check that we can open the package as a directory.
+               using (DirectoryPackage directoryPackage = new DirectoryPackage(Path.Combine(path, file), FileAccess.Read))
+               {
+                  AssertPackagesEqual(zipPackage, directoryPackage);
+               }
+            }
+         }
+      }
+
+      private static void AssertPackagesEqual(Package x, Package y)
+      {
+         Assert.AreEqual(x.GetRelationships().Count(), y.GetRelationships().Count(), "Relationship count differs");
+
+         // Compare package level relationships
+         foreach (var xRel in x.GetRelationships())
+         {
+            var yRel = y.GetRelationship(xRel.Id);
+            AssertRelationsEqual(xRel, yRel);
+         }
+
+         foreach (var xPart in x.GetParts())
+         {
+            var yPart = y.GetPart(xPart.Uri);
+            Assert.IsNotNull(yPart, "Part " + xPart.Uri + " missing from second package");
+            Assert.AreEqual(xPart.ContentType, yPart.ContentType, "Parts content type differ");
+
+            // Compare part relationships (But not for the .rels part).
+            if (!xPart.Uri.ToString().EndsWith(".rels"))
+            {
+               Assert.AreEqual(xPart.GetRelationships().Count(), yPart.GetRelationships().Count(),
+                  "Wrong number of rels for part " + xPart.Uri);
+
+               foreach (var xRel in xPart.GetRelationships())
+               {
+                  var yRel = yPart.GetRelationship(xRel.Id);
+                  AssertRelationsEqual(xRel, yRel);
+               }
+            }
+         }
+         // Compare package properties.
+         Expression<Func<Package, object>>[] props =
+            {
+               p => p.PackageProperties.Category,
+               p => p.PackageProperties.ContentStatus,
+               p => p.PackageProperties.ContentType,
+               p => p.PackageProperties.Created,
+               p => p.PackageProperties.Creator,
+               p => p.PackageProperties.Description,
+               p => p.PackageProperties.Identifier,
+               p => p.PackageProperties.Keywords,
+               p => p.PackageProperties.Language,
+               p => p.PackageProperties.LastModifiedBy,
+               p => p.PackageProperties.LastPrinted,
+               p => p.PackageProperties.Modified,
+               p => p.PackageProperties.Revision,
+               p => p.PackageProperties.Subject,
+               p => p.PackageProperties.Title,
+               p => p.PackageProperties.Version
+            };
+
+         foreach (var expr in props)
+         {
+            var get = expr.Compile();
+            Assert.AreEqual(get(x), get(y), "Difference in package property: " + expr);
+         }
+      }
+
+      private static void AssertRelationsEqual(PackageRelationship xRel, PackageRelationship yRel)
+      {
+         Assert.IsNotNull(yRel, "Relationship " + yRel + " missing from second package/part");
+         Assert.AreEqual(xRel.RelationshipType, yRel.RelationshipType, "Relationship type differs for " + xRel);
+         Assert.AreEqual(xRel.SourceUri, yRel.SourceUri, "Uri difference in relationship");
+         Assert.AreEqual(xRel.TargetUri, yRel.TargetUri, "Uri difference in relationship");
+         Assert.AreEqual(xRel.TargetMode, yRel.TargetMode, "Target mode differs");
       }
    }
 }

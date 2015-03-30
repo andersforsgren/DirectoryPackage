@@ -36,6 +36,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
+    <Reference Include="System.IO.Compression.FileSystem" />
     <Reference Include="WindowsBase" />
   </ItemGroup>
   <Choose>
@@ -59,6 +60,17 @@
       <Project>{807e2544-a29f-4435-a706-26fd473bfd10}</Project>
       <Name>DirectoryPackage</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="testdocuments\whatever.docx">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="testdocuments\whatever.pptx">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="testdocuments\whatever.xlsx">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
   <Choose>
     <When Condition="'$(VisualStudioVersion)' == '10.0' And '$(IsCodedUITest)' == 'True'">
