@@ -1,6 +1,6 @@
 ﻿using System.IO;
 
-namespace DirectoryPackage
+namespace PackagingExtras.Directory
 {
    internal static class FileAccessExtensions
    {

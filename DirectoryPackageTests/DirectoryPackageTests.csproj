@@ -6,7 +6,7 @@
     <ProjectGuid>{F2DC2304-BD3E-4A8C-A819-E7E6CD0FCE3D}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>DirectoryPackage.Tests</RootNamespace>
+    <RootNamespace>PackagingExtras.Directory.Tests</RootNamespace>
     <AssemblyName>DirectoryPackageTests</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
@@ -63,13 +63,13 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="testdocuments\whatever.docx">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Include="testdocuments\whatever.pptx">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Include="testdocuments\whatever.xlsx">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>
   <Choose>

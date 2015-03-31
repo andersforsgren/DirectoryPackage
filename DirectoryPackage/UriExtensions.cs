@@ -1,6 +1,6 @@
 using System;
 
-namespace DirectoryPackage
+namespace PackagingExtras.Directory
 {
    internal static class UriExtensions
    {

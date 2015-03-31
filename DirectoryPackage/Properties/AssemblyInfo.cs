@@ -6,11 +6,11 @@ using System.Runtime.InteropServices;
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
 [assembly: AssemblyTitle("DirectoryPackage")]
-[assembly: AssemblyDescription("System.IO.Packaging.Package implementation with directory storage")]
+[assembly: AssemblyDescription("Open Packaging Conventions (OPC) implementation with directory storage")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("")]
+[assembly: AssemblyCompany("Anders Forsgren")]
 [assembly: AssemblyProduct("DirectoryPackage")]
-[assembly: AssemblyCopyright("Copyright ©  2015 Anders Forsgren")]
+[assembly: AssemblyCopyright("Copyright © 2015 Anders Forsgren")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
@@ -33,4 +33,5 @@ using System.Runtime.InteropServices;
 // by using the '*' as shown below:
 // [assembly: AssemblyVersion("1.0.*")]
 [assembly: AssemblyVersion("1.0.0.0")]
+[assembly: AssemblyInformationalVersion("1.0.0-alpha")]
 [assembly: AssemblyFileVersion("1.0.0.0")]

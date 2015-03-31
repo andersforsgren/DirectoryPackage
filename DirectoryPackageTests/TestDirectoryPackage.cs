@@ -5,8 +5,9 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Text;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using PackagingExtras.Directory;
 
-namespace DirectoryPackage.Tests
+namespace Tests
 {
    [TestClass]
    public class TestDirectoryPackage
@@ -47,11 +48,11 @@ namespace DirectoryPackage.Tests
       [TestMethod]
       public void TestCreatePacakge()
       {
-         using (new DirectoryPackage(path, FileAccess.ReadWrite))
+         using (new DirectoryPackage(path))
          {
-            Assert.IsTrue(Directory.Exists(path), "Expected package constructor to create directory");
+            Assert.IsTrue(System.IO.Directory.Exists(path), "Expected package constructor to create directory");
          }
-         Assert.IsTrue(Directory.Exists(path), "Expected package dir not to be deleted at package close");
+         Assert.IsTrue(System.IO.Directory.Exists(path), "Expected package dir not to be deleted at package close");
       }
 
       [TestMethod]
@@ -59,7 +60,7 @@ namespace DirectoryPackage.Tests
       {
          string partFile = "/test.ext";
          Uri partUri = new Uri(partFile, UriKind.Relative);
-         using (Package package = new DirectoryPackage(path, FileAccess.ReadWrite))
+         using (Package package = new DirectoryPackage(path))
          {
             var part = package.CreatePart(partUri, "text/plain");
             Assert.IsNotNull(part, "Failed to create part " + partUri);
@@ -73,7 +74,7 @@ namespace DirectoryPackage.Tests
             Assert.AreEqual("text/plain", part.ContentType, "Part had unexpected content type");
             package.CreateRelationship(new Uri("/test.ext", UriKind.Relative), TargetMode.Internal, "testRelationship");
          }
-         using (Package package = new DirectoryPackage(path, FileAccess.Read))
+         using (Package package = new DirectoryPackage(path, FileMode.Open))
          {
             Assert.IsTrue(package.PartExists(partUri), "Expected part to persist.");
             var part = package.GetPart(partUri);
@@ -88,7 +89,7 @@ namespace DirectoryPackage.Tests
       {
          string partFile = "/test.ext";
          Uri partUri = new Uri(partFile, UriKind.Relative);
-         using (Package package = new DirectoryPackage(path, FileAccess.ReadWrite))
+         using (Package package = new DirectoryPackage(path))
          {
             var part = package.CreatePart(partUri, "text/plain");
             Assert.IsNotNull(part, "Failed to create part " + partUri);
@@ -98,7 +99,7 @@ namespace DirectoryPackage.Tests
                sw.Write("SomeTest");
             }
          }
-         using (Package package = new DirectoryPackage(path, FileAccess.ReadWrite))
+         using (Package package = new DirectoryPackage(path, FileMode.Open))
          {
             Assert.IsTrue(package.PartExists(partUri), "Expected part to persist.");
             var part = package.GetPart(partUri);
@@ -115,7 +116,7 @@ namespace DirectoryPackage.Tests
       public void TestCreateRelationship()
       {
          PackageRelationship rel;
-         using (Package package = new DirectoryPackage(path, FileAccess.ReadWrite))
+         using (Package package = new DirectoryPackage(path))
          {
             string partFile = "/test.ext";
             Uri partUri = new Uri(partFile, UriKind.Relative);
@@ -132,7 +133,7 @@ namespace DirectoryPackage.Tests
          }
 
          // Re-open package
-         using (Package package = new DirectoryPackage(path, FileAccess.Read))
+         using (Package package = new DirectoryPackage(path, FileMode.Open))
          {
             var rel2 = package.GetRelationship(rel.Id);
             Assert.IsNotNull(rel2, "Expected relationship to be persisted");
@@ -149,7 +150,7 @@ namespace DirectoryPackage.Tests
          Uri part1Uri = new Uri(part1File, UriKind.Relative);
          Uri part2Uri = new Uri(part2File, UriKind.Relative);
 
-         using (Package package = new DirectoryPackage(path, FileAccess.ReadWrite))
+         using (Package package = new DirectoryPackage(path))
          {
             var part = package.CreatePart(part1Uri, "text/plain");
             using (var stream = part.GetStream(FileMode.OpenOrCreate))
@@ -165,7 +166,7 @@ namespace DirectoryPackage.Tests
          }
 
          // Reopen & reassert.
-         using (Package package = new DirectoryPackage(path, FileAccess.ReadWrite))
+         using (Package package = new DirectoryPackage(path, FileMode.Open))
          {
             Assert.AreEqual("text/plain", package.GetPart(part1Uri).ContentType, "Default content type was not persisted");
             Assert.AreEqual("image/jpeg", package.GetPart(part2Uri).ContentType, "Override content type was not persisted");
@@ -175,25 +176,38 @@ namespace DirectoryPackage.Tests
       [TestMethod]
       public void TestPackageProperties()
       {
-         using (var pkg = new DirectoryPackage(path, FileAccess.ReadWrite))
+         using (var pkg = new DirectoryPackage(path))
          {
-            pkg.PackageProperties.Creator = "CreatorName";
+            pkg.PackageProperties.Creator = "Value1";
+            pkg.Flush();
+            pkg.PackageProperties.Creator = "Value2";
          }
-         using (var pk2 = new DirectoryPackage(path, FileAccess.Read))
+         using (var pk2 = new DirectoryPackage(path, FileMode.Open))
          {
-            Assert.AreEqual("CreatorName", pk2.PackageProperties.Creator);
+            Assert.AreEqual("Value2", pk2.PackageProperties.Creator);            
          }
       }
 
       [TestMethod]
       public void TestOpenReadCanShare()
       {
-         using (Package p1 = new DirectoryPackage(path, FileAccess.Write))
+         using (Package p1 = new DirectoryPackage(path))
          {
          }
-         using (Package p1 = new DirectoryPackage(path, FileAccess.Read))
+         using (Package p1 = new DirectoryPackage(path, FileMode.Open, FileAccess.Read, FileShare.Read))
          {
-            using (Package p2 = new DirectoryPackage(path, FileAccess.Read))
+            using (Package p2 = new DirectoryPackage(path, FileMode.Open, FileAccess.Read, FileShare.Read))
+            {
+            }
+         }
+      }
+
+      [TestMethod]      
+      public void TestOpenReadAfterWriteWithShareDoesNotThrow()
+      {
+         using (Package p1 = new DirectoryPackage(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.Read))
+         {
+            using (Package p2 = new DirectoryPackage(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
             {
             }
          }
@@ -201,27 +215,32 @@ namespace DirectoryPackage.Tests
 
       [TestMethod]
       [ExpectedException(typeof(DirectoryPackageException))]
-      public void TestOpenReadAfterWriteThrows()
+      public void TestOpenReadAfterWriteWithoutShareThrows()
       {
-         using (Package p1 = new DirectoryPackage(path, FileAccess.ReadWrite))
+         using (Package p1 = new DirectoryPackage(path))
          {
-            using (Package p2 = new DirectoryPackage(path, FileAccess.Read))
+         }
+
+         using (Package p1 = new DirectoryPackage(path, FileMode.Open, FileAccess.ReadWrite, FileShare.Read))
+         {
+            using (Package p2 = new DirectoryPackage(path, FileMode.Open, FileAccess.Read, FileShare.Read))
             {
             }
          }
       }
+
 
       [TestMethod]
       [ExpectedException(typeof(DirectoryPackageException))]
       public void TestOpenWriteAfterReadThrows()
       {
-         using (Package p1 = new DirectoryPackage(path, FileAccess.Write))
+         using (Package p1 = new DirectoryPackage(path))
          {
          }
 
-         using (Package p1 = new DirectoryPackage(path, FileAccess.Read))
+         using (Package p1 = new DirectoryPackage(path, FileMode.Open, FileAccess.Read, FileShare.Read))
          {
-            using (Package p2 = new DirectoryPackage(path, FileAccess.ReadWrite))
+            using (Package p2 = new DirectoryPackage(path, FileMode.Open, FileAccess.ReadWrite, FileShare.Read))
             {
             }
          }
@@ -233,10 +252,11 @@ namespace DirectoryPackage.Tests
       /// 
       ///   Test files are from http://blogs.msdn.com/b/dmahugh/archive/2007/09/11/open-xml-implementation-test-documents.aspx
       /// </summary>
+      [DeploymentItem(@"testdocuments\", @"testdocuments\")]
       [TestMethod]
       public void TestDocuments()
       {
-         foreach (var file in Directory.GetFiles("testdocuments"))
+         foreach (var file in System.IO.Directory.GetFiles("testdocuments"))
          {
             // Extract the contents to a directory
             System.IO.Compression.ZipFile.ExtractToDirectory(file, Path.Combine(path, file));
@@ -244,7 +264,7 @@ namespace DirectoryPackage.Tests
             using (Package zipPackage = Package.Open(file, FileMode.Open))
             {
                // Check that we can open the package as a directory.
-               using (DirectoryPackage directoryPackage = new DirectoryPackage(Path.Combine(path, file), FileAccess.Read))
+               using (DirectoryPackage directoryPackage = new DirectoryPackage(Path.Combine(path, file), FileMode.Open))
                {
                   AssertPackagesEqual(zipPackage, directoryPackage);
                }

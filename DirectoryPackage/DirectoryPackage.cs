@@ -1,14 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.IO.Packaging;
 using System.Linq;
 using System.Net.Mime;
+using System.Runtime.Serialization;
 using System.Text;
 using System.Xml;
 using System.Xml.Linq;
 
-namespace DirectoryPackage
+namespace PackagingExtras.Directory
 {
    /// <summary>
    ///   Implementation of <see cref="System.IO.Packaging.Package"/> with files stored in a folder rather than in 
@@ -24,35 +26,41 @@ namespace DirectoryPackage
       private readonly Uri rootUri;
       private readonly ContentTypesTable contentTypes;
       private FileStream lockFile;
+      private DirectoryPackagePropertiesPart propertiesPart;                 
 
       /// <summary>
       ///   Opens or creates a Package at the given diretory path. 
       /// </summary>
       /// <param name="path">Path to the directory to open or create.</param>
+      /// <param name="mode">A <see cref="FileMode"/> constant specifying the mode in which to open the package.</param>
       /// <param name="openFileAccess">File open access for the whole directory.</param>
+      /// <param name="share">A <see cref="FileShare"/> constant specifying what filemodes are allowed for other (preceding and subsequent) package opens on the same directory.</param>
       /// <exception cref="ArgumentNullException">Path is null.</exception>
       /// <exception cref="DirectoryPackageException">Thrown if the package is already open in a way that cannot be shared, or if some other IO exception occurs such as a security exception.</exception>
       /// <exception cref="System.IO.DirectoryNotFoundException">Thrown if the package is opened for reading but the directory does not exist.</exception>
-      public DirectoryPackage(string path, FileAccess openFileAccess)
+      public DirectoryPackage(string path, FileMode mode = FileMode.OpenOrCreate, FileAccess openFileAccess = FileAccess.ReadWrite, FileShare share = FileShare.None)
          : base(openFileAccess)
       {
          if (path == null)
-            throw new ArgumentNullException(path);
+            throw new ArgumentNullException("path");
 
-         if (openFileAccess == FileAccess.Read && !Directory.Exists(path))
-            throw new DirectoryNotFoundException("Can't find package at " + path);
+         if (mode == FileMode.Create && System.IO.Directory.Exists(path))
+            throw new DirectoryNotFoundException("Directory already exists at " + path);
 
-         var lockFileInfo = new FileInfo(Path.Combine(path, LockFileName));
+         if (mode == FileMode.Open && !System.IO.Directory.Exists(path))
+            throw new DirectoryNotFoundException("Can't find package at " + path);                  
 
-         if (openFileAccess.IsWrite())
+         if (mode == FileMode.Create || mode == FileMode.OpenOrCreate)
          {
-            if (!Directory.Exists(path))
-               Directory.CreateDirectory(path);
+            if (!System.IO.Directory.Exists(path))
+               System.IO.Directory.CreateDirectory(path);
          }
+
+         var lockFileInfo = new FileInfo(Path.Combine(path, LockFileName));         
 
          try
          {
-            lockFile = lockFileInfo.Open(FileMode.OpenOrCreate, openFileAccess, openFileAccess.IsWrite() ? FileShare.None : FileShare.Read);
+            lockFile = lockFileInfo.Open(FileMode.OpenOrCreate, openFileAccess, share);
          }
          catch (Exception ex)
          {
@@ -72,16 +80,16 @@ namespace DirectoryPackage
 
          string path = GetPath(partUri);
          string dirName = Path.GetDirectoryName(path);
-         if (!Directory.Exists(dirName))
+         if (!System.IO.Directory.Exists(dirName))
          {
-            Directory.CreateDirectory(dirName);
+            System.IO.Directory.CreateDirectory(dirName);
          }
          File.Create(path).Dispose();
 
          var ctype = new ContentType(contentType);
          contentTypes.AddContentType(partUri, ctype);
 
-         return new DirectoryPackagePart(this, partUri, contentType);
+         return CreatePackagePart(partUri, contentType);
       }
 
       private void ThrowIfInvalidPartUri(Uri partUri)
@@ -100,7 +108,24 @@ namespace DirectoryPackage
          var path = GetPath(partUri);
          if (!File.Exists(path))
             return null;
-         return new DirectoryPackagePart(this, partUri, contentTypes.GetContentType(partUri).ToString());
+         var ctype = contentTypes.GetContentType(partUri);
+
+         // Ignore parts that have no content types (those are invalid).
+         if (ctype == null)
+            return null;
+
+         return CreatePackagePart(partUri, ctype.ToString());
+      }
+
+      private DirectoryPackagePart CreatePackagePart(Uri partUri, string contentType)
+      {
+         if (contentType == "application/vnd.openxmlformats-package.core-properties+xml" && partUri.ToString().StartsWith("/package"))
+         {
+            if (propertiesPart == null)
+               propertiesPart = new DirectoryPackagePropertiesPart(this, partUri, contentType);
+            return propertiesPart;
+         }
+         return new DirectoryPackagePart(this, partUri, contentType);
       }
 
       protected override void DeletePartCore(Uri partUri)
@@ -115,18 +140,14 @@ namespace DirectoryPackage
       protected override PackagePart[] GetPartsCore()
       {
          var files = directory.GetFiles();
-         var result = new List<PackagePart>();
-         foreach (var file in files)
-         {
-            if (IsReservedFile(file))
-               continue;
-            Uri uri = GetUri(file.FullName);
-            result.Add(GetPartCore(uri));
-         }
-         return result.ToArray();
+         return files.Where(file => !IsReservedFile(file))
+            .Select(file => GetUri(file.FullName))
+            .Select(GetPartCore)
+            .Where(part => part != null)
+            .ToArray();
       }
 
-      private bool IsReservedFile(FileInfo file)
+      private static bool IsReservedFile(FileInfo file)
       {
          if (file.Name.StartsWith(ContentTypeFileName, StringComparison.CurrentCultureIgnoreCase))
             return true;
@@ -138,14 +159,20 @@ namespace DirectoryPackage
       }
 
       protected override void FlushCore()
-      {
-      }
-
+      {         
+      }           
+      
       protected override void Dispose(bool disposing)
       {
          try
-         {
+         {                        
             contentTypes.SaveToFile();
+
+            // Flush properties manually because of bug in Package.cs
+            if (propertiesPart != null)
+            {
+               propertiesPart.SaveToFile();               
+            }
          }
          finally
          {
@@ -180,6 +207,11 @@ namespace DirectoryPackage
          return relUri;
       }
 
+      public override string ToString()
+      {
+         return string.Format("DirectoryPackage [{0}]", directory);
+      }
+
       private class ContentTypesTable
       {
          private readonly Dictionary<string, ContentType> defaultDictionary;
@@ -203,6 +235,7 @@ namespace DirectoryPackage
          {
             if (!File.Exists(directoryPackage.ContentTypeFile.FullName))
                return;
+
             using (var fs = File.OpenRead(directoryPackage.ContentTypeFile.FullName))
             {
                var doc = XDocument.Load(fs);

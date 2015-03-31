@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<package >
+  <metadata>
+    <id>$id$</id>
+    <version>$version$</version>
+    <title>$title$</title>
+    <authors>$author$</authors>
+    <owners>$author$</owners>    
+    <projectUrl>https://github.com/andersforsgren/DirectoryPackage</projectUrl>    
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>$description$</description>
+    <releaseNotes>Alpha release. It will destroy your computer.</releaseNotes>
+    <copyright>Copyright 2015 Anders Forsgren</copyright>
+    <tags>Packaging OPC</tags>
+    <frameworkAssemblies>
+      <frameworkAssembly assemblyName="WindowsBase" />
+    </frameworkAssemblies>                         
+  </metadata>
+</package>
