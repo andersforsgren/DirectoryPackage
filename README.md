@@ -1,7 +1,7 @@
 # DirectoryPackage
 System.IO.Packaging.Package implementation with an extracted directory as physical storage
 
-Intended as a drop-in replacement for the ZipPackage type created by `Package.Open` in System.IO.Packaging. Having an extracted directory rather than a zip archive can be useeful when
+Intended as a drop-in replacement for the ZipPackage type created by `Package.Open` in System.IO.Packaging. Having an extracted directory rather than a zip archive can be useful when
 
  - Debugging, to see the package contents 
  - High performance package modification is required. Applications can keep a consistent document model and zip only when required (for transfer). An open document can be mapped to an extracted directory instead.
