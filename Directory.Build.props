@@ -1,0 +1,20 @@
+<Project>
+  <PropertyGroup>
+    <!--
+      Here you'll find general meta data, to be applied to all assemblies/nugets.
+      For project-specific meta data, please refer to their csproj-files.
+    -->
+    <Company>Anders Forsgren</Company>
+    <Copyright>Copyright © 2015 Anders Forsgren</Copyright>
+    <Product>DirectoryPackage</Product>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!--
+      Consider generating those automatically, e.g. using GitVersion
+    -->
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <InformationalVersion>1.0.0-alpha</InformationalVersion>
+  </PropertyGroup>
+</Project>

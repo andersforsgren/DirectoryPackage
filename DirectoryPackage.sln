@@ -1,11 +1,17 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2013
-VisualStudioVersion = 12.0.31101.0
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.31205.134
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DirectoryPackage", "DirectoryPackage\DirectoryPackage.csproj", "{807E2544-A29F-4435-A706-26FD473BFD10}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DirectoryPackage", "DirectoryPackage\DirectoryPackage.csproj", "{807E2544-A29F-4435-A706-26FD473BFD10}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DirectoryPackageTests", "DirectoryPackageTests\DirectoryPackageTests.csproj", "{F2DC2304-BD3E-4A8C-A819-E7E6CD0FCE3D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DirectoryPackageTests", "DirectoryPackageTests\DirectoryPackageTests.csproj", "{F2DC2304-BD3E-4A8C-A819-E7E6CD0FCE3D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{239B9BD3-8A05-4D3E-9C7E-12D7D78CA27A}"
+	ProjectSection(SolutionItems) = preProject
+		Directory.Build.props = Directory.Build.props
+		README.md = README.md
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -24,5 +30,8 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {B3B5E8CD-9AF1-4E70-9D6E-4299845B58D5}
 	EndGlobalSection
 EndGlobal
