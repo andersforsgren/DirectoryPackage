@@ -274,23 +274,23 @@ namespace Tests
 
       private static void AssertPackagesEqual(Package x, Package y)
       {
-         Assert.AreEqual(x.GetRelationships().Count(), y.GetRelationships().Count(), "Relationship count differs");
-
          // Compare package level relationships
+         Assert.AreEqual(x.GetRelationships().Count(), y.GetRelationships().Count(), "Relationship count differs");
          foreach (var xRel in x.GetRelationships())
          {
             var yRel = y.GetRelationship(xRel.Id);
             AssertRelationsEqual(xRel, yRel);
          }
 
+         Assert.AreEqual(x.GetParts().Count(), y.GetParts().Count(), "Part count differs");
          foreach (var xPart in x.GetParts())
          {
             var yPart = y.GetPart(xPart.Uri);
             Assert.IsNotNull(yPart, "Part " + xPart.Uri + " missing from second package");
             Assert.AreEqual(xPart.ContentType, yPart.ContentType, "Parts content type differ");
 
-            // Compare part relationships (But not for the .rels part).
-            if (!xPart.Uri.ToString().EndsWith(".rels"))
+            // Compare part relationships, unless it's a relationship part itself
+            if (!PackUriHelper.IsRelationshipPartUri(xPart.Uri))
             {
                Assert.AreEqual(xPart.GetRelationships().Count(), yPart.GetRelationships().Count(),
                   "Wrong number of rels for part " + xPart.Uri);
