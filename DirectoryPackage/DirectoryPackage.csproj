@@ -5,7 +5,10 @@
       For general meta data, to be applied to all assemblies/nugets, please refer to the top-level Directory.Build.probs file.
     -->
     <AssemblyTitle>DirectoryPackage</AssemblyTitle>
+    <PackageId>DirectoryPackage</PackageId>
     <Description>Open Packaging Conventions (OPC) implementation with directory storage</Description>
+    <Title>$(AssemblyTitle)</Title>
+    <PackageTags>Packaging OPC</PackageTags>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -18,10 +21,6 @@
 
   <ItemGroup>
     <PackageReference Include="System.IO.Packaging" Version="4.6" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Include="DirectoryPackage.nuspec" />
   </ItemGroup>
 
 </Project>

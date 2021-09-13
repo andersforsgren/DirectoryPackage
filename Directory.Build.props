@@ -5,8 +5,10 @@
       For project-specific meta data, please refer to their csproj-files.
     -->
     <Company>Anders Forsgren</Company>
+    <Authors>Anders Forsgren</Authors>
     <Copyright>Copyright © 2015 Anders Forsgren</Copyright>
     <Product>DirectoryPackage</Product>
+    <PackageProjectUrl>https://github.com/andersforsgren/DirectoryPackage</PackageProjectUrl>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -16,5 +18,7 @@
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
     <FileVersion>1.0.0.0</FileVersion>
     <InformationalVersion>1.0.0-alpha</InformationalVersion>
+    <PackageVersion>$(InformationalVersion)</PackageVersion>
+    <PackageReleaseNotes>Alpha release. It will destroy your computer.</PackageReleaseNotes>
   </PropertyGroup>
 </Project>
