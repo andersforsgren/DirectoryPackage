@@ -67,8 +67,15 @@ namespace PackagingExtras.Directory
             throw new DirectoryPackageException("Error opening package at " + path, ex);
          }
          directory = new DirectoryInfo(path);
-         rootUri = new Uri(directory.FullName, UriKind.Absolute);
+         rootUri = new Uri(directory.FullName + Path.DirectorySeparatorChar, UriKind.Absolute);
          contentTypes = new ContentTypesTable(this);
+
+         // Note: The static method `Package.Open` does this for ZipPackage, thus we need to do it for DirectoryPackage, too.
+         // Also note that the Package implementation in NetFx/WindowsBase.dll ensures most stuff works even without this call
+         // at construction time because it invokes GetPartCore in may more places then the implementation in System.IO.Packagin.dll
+         // This divergence in behavior between NetFx and NetCore is really ugly, but we have to live with it :-(
+         if (FileOpenAccess.IsRead())
+            GetParts();
       }
 
       protected override PackagePart CreatePartCore(Uri partUri, string contentType, CompressionOption compressionOption)
@@ -139,7 +146,7 @@ namespace PackagingExtras.Directory
 
       protected override PackagePart[] GetPartsCore()
       {
-         var files = directory.GetFiles();
+         var files = directory.GetFiles("*", SearchOption.AllDirectories);
          return files.Where(file => !IsReservedFile(file))
             .Select(file => GetUri(file.FullName))
             .Select(GetPartCore)
@@ -203,8 +210,8 @@ namespace PackagingExtras.Directory
       internal Uri GetUri(string fullPath)
       {
          Uri absUri = new Uri(fullPath, UriKind.Absolute);
-         Uri relUri = absUri.MakeRelativeUri(rootUri);
-         return relUri;
+         Uri relUri = rootUri.MakeRelativeUri(absUri);
+         return PackUriHelper.CreatePartUri(relUri);
       }
 
       public override string ToString()
