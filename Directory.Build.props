@@ -10,15 +10,9 @@
     <Product>DirectoryPackage</Product>
     <PackageProjectUrl>https://github.com/andersforsgren/DirectoryPackage</PackageProjectUrl>
   </PropertyGroup>
-
-  <PropertyGroup>
-    <!--
-      Consider generating those automatically, e.g. using GitVersion
-    -->
-    <AssemblyVersion>1.0.0.0</AssemblyVersion>
-    <FileVersion>1.0.0.0</FileVersion>
-    <InformationalVersion>1.0.0-alpha</InformationalVersion>
-    <PackageVersion>$(InformationalVersion)</PackageVersion>
-    <PackageReleaseNotes>Alpha release. It will destroy your computer.</PackageReleaseNotes>
-  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="GitVersion.MsBuild" Version="5.7.0">
+      <PrivateAssets>All</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
 </Project>
