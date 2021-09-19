@@ -44,13 +44,19 @@ namespace PackagingExtras.Directory
          if (path == null)
             throw new ArgumentNullException("path");
 
+         if (mode != FileMode.CreateNew && mode != FileMode.Create && mode != FileMode.Open && mode != FileMode.OpenOrCreate)
+            throw new ArgumentOutOfRangeException(nameof(mode));
+
+         if (mode == FileMode.CreateNew && System.IO.Directory.Exists(path))
+            throw new IOException("Directory already exists at " + path);
+
          if (mode == FileMode.Create && System.IO.Directory.Exists(path))
-            throw new DirectoryNotFoundException("Directory already exists at " + path);
+            System.IO.Directory.Delete(path, recursive: true); // in lack of a fast .NET API for cleaning, we just drop it and recreate it below
 
          if (mode == FileMode.Open && !System.IO.Directory.Exists(path))
             throw new DirectoryNotFoundException("Can't find package at " + path);                  
 
-         if (mode == FileMode.Create || mode == FileMode.OpenOrCreate)
+         if (mode == FileMode.CreateNew || mode == FileMode.Create || mode == FileMode.OpenOrCreate)
          {
             if (!System.IO.Directory.Exists(path))
                System.IO.Directory.CreateDirectory(path);

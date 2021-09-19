@@ -45,14 +45,39 @@ namespace Tests
          return Path.Combine(path, relPath);
       }
 
-      [TestMethod]
-      public void TestCreatePacakge()
+      [DataTestMethod]
+      [DataRow(FileMode.OpenOrCreate)]
+      [DataRow(FileMode.Create)]
+      [DataRow(FileMode.CreateNew)]
+      public void TestCreatePacakge_CreatesDirectory(FileMode mode)
       {
-         using (new DirectoryPackage(path))
+         using (new DirectoryPackage(path, mode))
          {
             Assert.IsTrue(System.IO.Directory.Exists(path), "Expected package constructor to create directory");
          }
          Assert.IsTrue(System.IO.Directory.Exists(path), "Expected package dir not to be deleted at package close");
+      }
+
+      [TestMethod]
+      public void TestCreatePacakge_EnsuresEmptyDirectory()
+      {
+         CreateDummyPackageDir(path);
+         using (var package = new DirectoryPackage(path, FileMode.Create))
+         {
+            Assert.AreEqual(0, package.GetParts().Count(), "Expected package to be empty.");
+         }
+      }
+
+      [DataTestMethod]
+      [DataRow(FileMode.OpenOrCreate)]
+      [DataRow(FileMode.Open)]
+      public void TestCreatePacakge_KeepsExistingContent(FileMode mode)
+      {
+          CreateDummyPackageDir(path);
+         using (var package = new DirectoryPackage(path, mode))
+         {
+            Assert.AreEqual(1, package.GetParts().Count(), "Expected package to have parts.");
+         }
       }
 
       [TestMethod]
@@ -270,6 +295,15 @@ namespace Tests
                }
             }
          }
+      }
+
+      private static void CreateDummyPackageDir(string path)
+      {
+          Directory.CreateDirectory(path);
+          File.WriteAllText(Path.Combine(path, "dummyPart.txt"), 
+              "hello world");
+          File.WriteAllText(Path.Combine(path, "[Content_Types].xml"), 
+              "<Types xmlns='http://schemas.openxmlformats.org/package/2006/content-types'><Default Extension='txt' ContentType='text/plain' /></Types>");
       }
 
       private static void AssertPackagesEqual(Package x, Package y)
