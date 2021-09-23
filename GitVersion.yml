@@ -1,15 +1,28 @@
-assembly-versioning-scheme: MajorMinorPatch
-mode: ContinuousDelivery
+mode: ContinuousDeployment
 next-version: 1.0.0
+assembly-versioning-scheme: Major # used for binding and should be kept stable, unless there are breaking changes
+assembly-informational-format: '{SemVer}+g{ShortSha}'
+assembly-file-versioning-format: '{Major}.{Minor}.{Patch}.{WeightedPreReleaseNumber}' # has to increase monotonically in order for Windows Installer to replace it in case of upgrades
+tag-pre-release-weight: 60000 # final builds
 branches:
   main:
     regex: ^master$|^main$
-    mode: ContinuousDelivery
     tag: 'alpha'
-    increment: Patch
+    pre-release-weight: 10000 # alphas
+    increment: Minor
     prevent-increment-of-merged-branch-version: true
     track-merge-target: false
     tracks-release-branches: false
+  release:
+    tag: 'beta'
+    pre-release-weight: 30000 # betas
+  hotfix:
+    tag: 'beta'
+    pre-release-weight: 30000 # betas
+    increment: Patch
+  feature:
+    pre-release-weight: 0 # temporary feature builds, to be overruled by "official" alphas/betas
+    tag: afeat.{BranchName} # has to sort lower then "alpha"
 ignore:
   sha: []
 merge-message-formats: {}
