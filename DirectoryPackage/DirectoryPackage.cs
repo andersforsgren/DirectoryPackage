@@ -5,7 +5,6 @@ using System.IO;
 using System.IO.Packaging;
 using System.Linq;
 using System.Net.Mime;
-using System.Runtime.Serialization;
 using System.Text;
 using System.Xml;
 using System.Xml.Linq;
@@ -18,14 +17,14 @@ namespace PackagingExtras.Directory
    /// </summary>
    public class DirectoryPackage : Package
    {
-      private static readonly string LockFileName = "_DirectoryPackage_lock";
       private static readonly string ContentTypeFileName = "[Content_Types].xml";
       private static readonly string ContentTypesNameSpace = "http://schemas.openxmlformats.org/package/2006/content-types";
 
       private readonly DirectoryInfo directory;
       private readonly Uri rootUri;
       private readonly ContentTypesTable contentTypes;
-      private FileStream lockFile;
+      private FileStream contentTypeFile;    // Content type xml is kept open as a lock on the package.
+      private string contentTypeFileContent; 
       private DirectoryPackagePropertiesPart propertiesPart;                 
 
       /// <summary>
@@ -62,11 +61,13 @@ namespace PackagingExtras.Directory
                System.IO.Directory.CreateDirectory(path);
          }
 
-         var lockFileInfo = new FileInfo(Path.Combine(path, LockFileName));         
-
          try
          {
-            lockFile = lockFileInfo.Open(FileMode.OpenOrCreate, openFileAccess, share);
+            contentTypeFile = new FileInfo(Path.Combine(path, ContentTypeFileName)).Open(FileMode.OpenOrCreate, openFileAccess, share);
+            using (StreamReader reader = new StreamReader(contentTypeFile, Encoding.UTF8, true, 2048, leaveOpen: true))
+            {
+                contentTypeFileContent = reader.ReadToEnd();
+            }
          }
          catch (Exception ex)
          {
@@ -165,9 +166,6 @@ namespace PackagingExtras.Directory
          if (file.Name.StartsWith(ContentTypeFileName, StringComparison.CurrentCultureIgnoreCase))
             return true;
 
-         if (file.Name.StartsWith(LockFileName, StringComparison.InvariantCultureIgnoreCase))
-            return true;
-
          return false;
       }
 
@@ -178,22 +176,25 @@ namespace PackagingExtras.Directory
       protected override void Dispose(bool disposing)
       {
          try
-         {                        
-            contentTypes.SaveToFile();
-
-            // Flush properties manually because of bug in Package.cs
-            if (propertiesPart != null)
+         {
+            if (this.FileOpenAccess.IsWrite())
             {
-               propertiesPart.SaveToFile();               
+               contentTypes.SaveToFile(contentTypeFile);
+
+               // Flush properties manually because of bug in Package.cs
+               if (propertiesPart != null)
+               {
+                  propertiesPart.SaveToFile();
+               }
             }
          }
          finally
          {
             try
             {
-               if (lockFile != null)
-                  lockFile.Close();
-               lockFile = null;
+               if (contentTypeFile != null)
+                  contentTypeFile.Close();
+                    contentTypeFile = null;
             }
             finally
             {
@@ -202,9 +203,9 @@ namespace PackagingExtras.Directory
          }
       }
 
-      internal FileInfo ContentTypeFile
+      internal string GetContentFileContents()
       {
-         get { return new FileInfo(Path.Combine(directory.FullName, ContentTypeFileName)); }
+          return this.contentTypeFileContent;
       }
 
       internal string GetPath(Uri relativeUri)
@@ -240,27 +241,24 @@ namespace PackagingExtras.Directory
 
             if (package.FileOpenAccess.IsRead())
             {
-               ParseContentTypeFile(package);
+               ParseContentTypeFile();
             }
          }
 
-         private void ParseContentTypeFile(DirectoryPackage directoryPackage)
+         private void ParseContentTypeFile()
          {
-            if (!File.Exists(directoryPackage.ContentTypeFile.FullName))
-               return;
-
-            using (var fs = File.OpenRead(directoryPackage.ContentTypeFile.FullName))
+            string xml = package.GetContentFileContents();
+            if (xml == "")
+                return;
+            var doc = XDocument.Load(new StringReader(xml));
+            foreach (var def in doc.Root.Elements().Where(e => e.Name.LocalName == "Default"))
             {
-               var doc = XDocument.Load(fs);
-               foreach (var def in doc.Root.Elements().Where(e => e.Name.LocalName == "Default"))
-               {
-                  defaultDictionary[def.Attribute("Extension").Value] = new ContentType(def.Attribute("ContentType").Value);
-               }
-               foreach (var def in doc.Root.Elements().Where(e => e.Name.LocalName == "Override"))
-               {
-                  overrideDictionary[def.Attribute("PartName").Value] = new ContentType(def.Attribute("ContentType").Value);
-               }
+                defaultDictionary[def.Attribute("Extension").Value] = new ContentType(def.Attribute("ContentType").Value);
             }
+            foreach (var def in doc.Root.Elements().Where(e => e.Name.LocalName == "Override"))
+            {
+                overrideDictionary[def.Attribute("PartName").Value] = new ContentType(def.Attribute("ContentType").Value);
+            }            
          }
 
          internal void AddContentType(Uri partUri, ContentType contentType)
@@ -307,24 +305,21 @@ namespace PackagingExtras.Directory
             isDirty |= overrideDictionary.Remove(partUri.ToString());
          }
 
-         internal void SaveToFile()
+         internal void SaveToFile(Stream stream)
          {
             if (!isDirty)
                return;
-
-            using (Stream stream = package.ContentTypeFile.Open(FileMode.OpenOrCreate))
+            stream.Seek(0, SeekOrigin.Begin);
+            using (var writer = new XmlTextWriter(stream, Encoding.UTF8))
             {
-               using (var writer = new XmlTextWriter(stream, Encoding.UTF8))
-               {
-                  var root = new XElement("Types",
-                     new XAttribute("xmlns", ContentTypesNameSpace),
-                     defaultDictionary.Select(kvp => new XElement("Default", new XAttribute("Extension", kvp.Key), new XAttribute("ContentType", kvp.Value))).Concat(
-                     overrideDictionary.Select(kvp => new XElement("Override", new XAttribute("PartName", kvp.Key), new XAttribute("ContentType", kvp.Value)))).ToArray());
-                  XDocument doc = new XDocument();
-                  doc.Add(root);
-                  doc.WriteTo(writer);
-               }
-            }
+                var root = new XElement("Types",
+                    new XAttribute("xmlns", ContentTypesNameSpace),
+                    defaultDictionary.Select(kvp => new XElement("Default", new XAttribute("Extension", kvp.Key), new XAttribute("ContentType", kvp.Value))).Concat(
+                    overrideDictionary.Select(kvp => new XElement("Override", new XAttribute("PartName", kvp.Key), new XAttribute("ContentType", kvp.Value)))).ToArray());
+                XDocument doc = new XDocument();
+                doc.Add(root);
+                doc.WriteTo(writer);
+            }            
          }
       }
    }
