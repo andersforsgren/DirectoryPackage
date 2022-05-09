@@ -2,7 +2,7 @@
   <PropertyGroup>
     <!--
       Here you'll find meta data specific to this project.
-      For general meta data, to be applied to all assemblies/nugets, please refer to the top-level Directory.Build.probs file.
+      For general meta data, to be applied to all assemblies/nugets, please refer to the top-level Directory.Build.props file.
     -->
     <AssemblyTitle>DirectoryPackage</AssemblyTitle>
     <PackageId>DirectoryPackage</PackageId>
